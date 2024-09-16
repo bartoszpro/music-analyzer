@@ -4,7 +4,7 @@ from pygame import mixer
 import librosa
 import numpy as np
 import time
-
+import threading
 
 def format_time(seconds):
     minutes, seconds = divmod(int(seconds), 60)
@@ -41,6 +41,8 @@ class MusicAnalyzerApp:
         self.advanced_labels = {}
 
         self.setup_ui()
+
+        self.thread = None
 
     def setup_ui(self):
         self.load_button = tk.Button(self.root, text="Load MP3 File", command=self.load_file)
@@ -148,12 +150,16 @@ class MusicAnalyzerApp:
 
     def analyze_audio_features(self):
         if self.music_file:
-            start_time = time.time()
-            self.perform_analysis()
-            elapsed_time = time.time() - start_time
-            print(f"Analysis completed in {elapsed_time:.2f} seconds")
+            if not self.thread or not self.thread.is_alive():
+                print("Analysis started")
+                self.thread = threading.Thread(target=self.perform_analysis, daemon=True)
+                self.thread.start()
+            else:
+                print("Analysis is already running")
 
     def perform_analysis(self):
+        start_time = time.time()
+
         sr = self.sample_rate.get()
 
         y, sr = librosa.load(self.music_file, sr=sr)
@@ -181,7 +187,9 @@ class MusicAnalyzerApp:
         self.advanced_labels["Spectral Centroid"].config(text=f"Spectral Centroid: {spectral_centroid.mean():.2f}")
         self.advanced_labels["Spectral Bandwidth"].config(text=f"Spectral Bandwidth: {spectral_bandwidth.mean():.2f}")
         self.advanced_labels["Spectral Flatness"].config(text=f"Spectral Flatness: {spectral_flatness.mean():.2f}")
-        print('Analysis complete')
+
+        elapsed_time = time.time() - start_time
+        print(f"Analysis completed in {elapsed_time:.2f} seconds")
 
     def toggle_advanced(self):
         self.advanced_mode = not self.advanced_mode
